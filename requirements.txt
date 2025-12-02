@@ -2,4 +2,7 @@ docling
 fastapi
 uvicorn
 python-multipart
+torch
+transformers
+pillow
 
