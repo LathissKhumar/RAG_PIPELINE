@@ -115,10 +115,19 @@ def chunk_markdown_with_headers(
     
     for doc in md_docs:
         # Build header path deterministically
-        header_path = _build_header_path(doc.metadata)
+        # Handle cases where doc might not have standard attributes
+        metadata = getattr(doc, 'metadata', {})
+        if not isinstance(metadata, dict):
+            metadata = {}
         
-        # Get content
-        content = doc.page_content.strip() if hasattr(doc, 'page_content') else str(doc).strip()
+        header_path = _build_header_path(metadata)
+        
+        # Get content with explicit type checking
+        if hasattr(doc, 'page_content') and isinstance(doc.page_content, str):
+            content = doc.page_content.strip()
+        else:
+            # Fallback for non-standard document objects
+            content = str(doc).strip() if doc else ""
         
         # Skip empty content
         if not content:
@@ -135,7 +144,7 @@ def chunk_markdown_with_headers(
             final_chunks.append({
                 "header_path": header_path,
                 "content": stripped_chunk,
-                "metadata": dict(doc.metadata) if hasattr(doc, 'metadata') else {}
+                "metadata": dict(metadata)
             })
     
     return final_chunks

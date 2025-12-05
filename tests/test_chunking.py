@@ -11,14 +11,18 @@ Covers edge cases including:
 - Parameter validation
 
 Note: These tests rely on langchain's MarkdownHeaderTextSplitter.
-If tests fail due to API changes, pin langchain-text-splitters>=0.0.1
-or an appropriate langchain version.
+If tests fail due to API changes, pin langchain-text-splitters to a tested version
+(e.g., langchain-text-splitters>=0.2.0,<0.4.0).
 """
 import pytest
 
 from app.utils.code_based import code_chunk
 from app.utils.header_chunk import chunk_markdown_with_headers
 from app.utils.recursive_based import recursive_chunk
+
+# Tolerance for splitter behavior variations (splitters may produce slightly larger chunks)
+SPLITTER_TOLERANCE = 20
+LARGE_SPLITTER_TOLERANCE = 50
 
 
 class TestRecursiveChunk:
@@ -41,11 +45,12 @@ class TestRecursiveChunk:
     def test_long_text_splits_correctly(self):
         """Long text should be split into multiple chunks."""
         text = "This is a sentence. " * 100
-        chunks = recursive_chunk(text, chunk_size=100, chunk_overlap=10)
+        chunk_size = 100
+        chunks = recursive_chunk(text, chunk_size=chunk_size, chunk_overlap=10)
         assert len(chunks) > 1
-        # Each chunk should be at most chunk_size
+        # Each chunk should be at most chunk_size plus tolerance
         for chunk in chunks:
-            assert len(chunk) <= 100 + 20  # Some tolerance for splitter behavior
+            assert len(chunk) <= chunk_size + SPLITTER_TOLERANCE
     
     def test_chunks_are_stripped(self):
         """All returned chunks should be stripped strings."""
@@ -296,10 +301,10 @@ Content in chapter 2."""
         # Should split into multiple chunks
         assert len(chunks) > 1
         
-        # Each chunk's content should be reasonably sized
+        # Each chunk's content should be reasonably sized (chunk_size=100 * 2 for tolerance)
         for chunk in chunks:
-            # Allow some tolerance for splitter behavior
-            assert len(chunk["content"]) <= 200
+            # Allow tolerance: chunk_size (100) * 2 for splitter behavior
+            assert len(chunk["content"]) <= 100 * 2
     
     def test_content_lengths_within_chunk_size(self):
         """Content lengths should be <= chunk_size param."""
@@ -314,7 +319,7 @@ This is a very long paragraph that should be split into smaller chunks.
         for chunk in chunks:
             # Content should be close to or under chunk_size
             # (some variance allowed due to splitter behavior)
-            assert len(chunk["content"]) <= chunk_size + 50
+            assert len(chunk["content"]) <= chunk_size + LARGE_SPLITTER_TOLERANCE
     
     def test_chunks_are_stripped(self):
         """Content in returned chunks should be stripped."""

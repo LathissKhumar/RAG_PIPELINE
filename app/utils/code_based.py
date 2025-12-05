@@ -28,8 +28,8 @@ def _split_large_code_block(code_block: str, max_size: int) -> List[str]:
     # Determine fence type (``` or ~~~)
     fence_marker = '```' if opening_fence.startswith('```') else '~~~'
     
-    # Check if there's a closing fence
-    has_closing = len(lines) > 1 and lines[-1].strip() in ('```', '~~~')
+    # Check if there's a closing fence (must match the same fence type)
+    has_closing = len(lines) > 1 and lines[-1].strip() == fence_marker
     
     if has_closing:
         content_lines = lines[1:-1]
