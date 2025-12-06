@@ -1,27 +1,45 @@
+# app/utils/vector_store.py
+
 import os
 import json
-from langchain.embeddings import HuggingFaceEmbeddings
-from langchain.vectorstores import FAISS
+from typing import List, Dict
 
-EMBED_DIR = "embeddings_store"
-os.makedirs(EMBED_DIR, exist_ok=True)
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
 
-embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+# Where all FAISS DBs will be stored
+VECTOR_DIR = "vectorstores"
+os.makedirs(VECTOR_DIR, exist_ok=True)
 
-def save_chunks_to_vectorstore(json_chunks_path: str, store_name: str):
-    with open(json_chunks_path, "r", encoding="utf-8") as jf:
-        chunks = json.load(jf)
+# Embedding model
+embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+
+
+def build_vectorstore(chunks_json_path: str, store_name: str) -> str:
+    """
+    Load chunked JSON file and create a FAISS vectorstore.
+    Returns the path to the stored DB.
+    """
+    with open(chunks_json_path, "r", encoding="utf-8") as f:
+        chunks: List[Dict] = json.load(f)
 
     texts = [c["content"] for c in chunks]
     metadata = [{"header_path": c["header_path"]} for c in chunks]
 
-    vectorstore = FAISS.from_texts(texts=texts, embedding=embedding_model, metadatas=metadata)
-    save_path = os.path.join(EMBED_DIR, store_name)
+    vectorstore = FAISS.from_texts(
+        texts=texts,
+        embedding=embeddings,
+        metadatas=metadata
+    )
 
+    save_path = os.path.join(VECTOR_DIR, store_name)
     vectorstore.save_local(save_path)
     return save_path
 
 
 def load_vectorstore(store_name: str):
-    path = os.path.join(EMBED_DIR, store_name)
-    return FAISS.load_local(path, embedding_model, allow_dangerous_deserialization=True)
+    """
+    Load a FAISS vectorstore from disk.
+    """
+    path = os.path.join(VECTOR_DIR, store_name)
+    return FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
