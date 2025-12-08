@@ -7,6 +7,8 @@ from docling_core.transforms.serializer.base import BaseDocSerializer, Serializa
 from docling_core.transforms.serializer.common import create_ser_result
 from docling_core.transforms.serializer.markdown import (MarkdownDocSerializer, MarkdownParams, MarkdownPictureSerializer)
 from docling_core.types.doc import DoclingDocument, PictureItem, ImageRefMode
+
+
 def convert_pdf_to_markdown(pdf_path: str, output_dir: str) -> str:
     """Convert PDF to Markdown with VLM image descriptions replacing embedded images."""
     
