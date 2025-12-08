@@ -1,8 +1,13 @@
-docling
 fastapi
 uvicorn
 python-multipart
-torch
-transformers
 pillow
+docling
+transformers
+torch
+#OCR Backends with GPU support
+onnxruntime-gpu
+# OCR libraries
+rapidocr
+easyocr
 

@@ -2,6 +2,7 @@ from fastapi import APIRouter, UploadFile, File
 from typing import List
 import os
 from app.utils.docling_converter import convert_pdf_to_markdown
+from app.utils.chunker.hybrid_fallback import chunk_source
 
 router = APIRouter()
 
@@ -17,5 +18,11 @@ async def convert_pdf(files: List[UploadFile] = File(...)):
         with open(pdf_path, "wb") as f:
             f.write(await file.read())
         md_path = convert_pdf_to_markdown(pdf_path, md_dir)
-        markdown_files.append(md_path)
+        # Run the chunking pipeline and persist chunks under converted_mds/<basename>/
+        try:
+            chunks = chunk_source(path=pdf_path, output_root=md_dir)
+        except Exception:
+            chunks = []
+
+        markdown_files.append({"md_path": md_path, "chunks_count": len(chunks)})
     return {"markdown_files": markdown_files}

@@ -1,4 +1,5 @@
 import os
+import json
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions,PictureDescriptionVlmOptions
@@ -17,7 +18,7 @@ def convert_pdf_to_markdown(pdf_path: str, output_dir: str) -> str:
     picture_description_options = PictureDescriptionVlmOptions(
         repo_id="HuggingFaceTB/SmolVLM-256M-Instruct", 
         prompt="""Describe this image in detail without missing any details and elements.
-        Provide the description in complete sentences.The description should act like an alternative describing
+        Provide the description in complete sentences.The description should act like an alternative text describing
         the entire image for someone who cannot see it. Be specific about colors, objects, people, actions, and context.""",
     
         device="cuda" if os.environ.get("USE_CUDA", "0") == "1" else "cpu",
@@ -26,6 +27,10 @@ def convert_pdf_to_markdown(pdf_path: str, output_dir: str) -> str:
     pipeline_options = PdfPipelineOptions(
         do_picture_description=True,
         generate_picture_images=True,
+        do_code_enrichment=True,
+        do_formula_enrichment=True,
+        force_backend_text=False,
+        generate_page_images=True,
         images_scale=2.0,
         picture_description_options=picture_description_options,
     )
