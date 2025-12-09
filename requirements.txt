@@ -11,3 +11,5 @@ onnxruntime-gpu
 rapidocr
 easyocr
 tiktoken
+chromadb
+ollama
