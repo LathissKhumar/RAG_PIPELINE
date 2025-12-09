@@ -20,6 +20,10 @@ from docling_core.transforms.chunker.code_chunking.standard_code_chunking_strate
     StandardCodeChunkingStrategy,
 )
 from .optimizer import optimize_chunks
+from app.embeddings.worker import enqueue_chunk_sync
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 CODE_EXT_LANG: dict[str, str] = {
@@ -36,7 +40,7 @@ def _ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
 
-def _write_chunks_to_disk(chunks: List[dict], out_dir: Path) -> None:
+def _write_chunks_to_disk(chunks: List[dict], out_dir: Path, base_name: str, md_file: str) -> None:
     _ensure_dir(out_dir)
     # write summary json
     with open(out_dir / "chunks.json", "w", encoding="utf-8") as fh:
@@ -47,6 +51,9 @@ def _write_chunks_to_disk(chunks: List[dict], out_dir: Path) -> None:
         filename = f"chunk_{i:03}.md"
         with open(out_dir / filename, "w", encoding="utf-8") as fh:
             fh.write(ch.get("text", ""))
+        chunk_id = f"{base_name}__{i:03d}"
+        enqueue_chunk_sync(chunk_id, ch.get("text", ""), {"source_md": md_file, "chunk_index": i})
+        logger.info(f"Chunk {chunk_id} written and enqueued for embedding")
 
 
 def chunk_code_file(path: str, output_root: str = "converted_mds", min_lines_to_keep: int = 8) -> List[dict]:
@@ -121,6 +128,6 @@ def chunk_code_file(path: str, output_root: str = "converted_mds", min_lines_to_
 
     # post-process for RAG
     optimized = optimize_chunks(merged)
-    _write_chunks_to_disk(optimized, out_dir)
+    _write_chunks_to_disk(optimized, out_dir, base_name, str(md_file))
 
     return merged

@@ -13,6 +13,10 @@ from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
 from docling_core.transforms.chunker import HierarchicalChunker
 from .optimizer import optimize_chunks
+from app.embeddings.worker import enqueue_chunk_sync
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def _ensure_dir(p: Path) -> None:
@@ -67,5 +71,8 @@ def chunk_markdown_text(text: str, name: str = "doc.md", output_root: str = "con
     for i, c in enumerate(optimized, start=1):
         with open(out_dir / f"chunk_{i:03}.md", "w", encoding="utf-8") as fh:
             fh.write(c.get("text", ""))
+        chunk_id = f"{base_name}__{i:03d}"
+        enqueue_chunk_sync(chunk_id, c.get("text", ""), {"source_md": str(md_file), "chunk_index": i})
+        logger.info(f"Chunk {chunk_id} written and enqueued for embedding")
 
     return chunks

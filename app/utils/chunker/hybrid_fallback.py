@@ -21,6 +21,10 @@ from docling_core.transforms.chunker.code_chunking.standard_code_chunking_strate
 from .code_chunker import chunk_code_file
 from .markdown_chunker import chunk_markdown_text
 from .optimizer import optimize_chunks
+from app.embeddings.worker import enqueue_chunk_sync
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 EXT_CODE = {"py", "js", "ts", "java", "c", "cpp"}
@@ -45,6 +49,9 @@ def _write_chunks_summary(chunks: List[dict], out_dir: Path, base_name: str, md_
     for i, c in enumerate(chunks, start=1):
         with open(out_dir / f"chunk_{i:03}.md", "w", encoding="utf-8") as fh:
             fh.write(c.get("text", ""))
+        chunk_id = f"{base_name}__{i:03d}"
+        enqueue_chunk_sync(chunk_id, c.get("text", ""), {"source_md": str(md_file), "chunk_index": i})
+        logger.info(f"Chunk {chunk_id} written and enqueued for embedding")
 
 
 def chunk_source(

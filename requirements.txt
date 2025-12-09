@@ -13,3 +13,6 @@ easyocr
 tiktoken
 chromadb
 ollama
+llama-index
+numpy
+requests
