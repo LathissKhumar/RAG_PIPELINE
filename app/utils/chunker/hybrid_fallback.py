@@ -20,6 +20,7 @@ from docling_core.transforms.chunker.code_chunking.standard_code_chunking_strate
 
 from .code_chunker import chunk_code_file
 from .markdown_chunker import chunk_markdown_text
+from .optimizer import optimize_chunks
 
 
 EXT_CODE = {"py", "js", "ts", "java", "c", "cpp"}
@@ -32,9 +33,11 @@ def _ensure_dir(p: Path) -> None:
 
 def _write_chunks_summary(chunks: List[dict], out_dir: Path, base_name: str, md_content: str) -> None:
     _ensure_dir(out_dir)
-    # write markdown
-    with open(out_dir / f"{base_name}.md", "w", encoding="utf-8") as fh:
-        fh.write(md_content)
+    # write markdown only if it doesn't already exist (avoid overwriting)
+    md_file = out_dir / f"{base_name}.md"
+    if not md_file.exists():
+        with open(md_file, "w", encoding="utf-8") as fh:
+            fh.write(md_content)
 
     with open(out_dir / "chunks.json", "w", encoding="utf-8") as fh:
         json.dump(chunks, fh, ensure_ascii=False, indent=2)
@@ -101,6 +104,9 @@ def chunk_source(
     except Exception:
         md_content = "\n\n".join([c["text"] for c in chunks])
 
-    _write_chunks_summary(chunks, out_dir, base_name, md_content)
+    # optimize chunks for RAG
+    optimized = optimize_chunks(chunks)
 
-    return chunks
+    _write_chunks_summary(optimized, out_dir, base_name, md_content)
+
+    return optimized

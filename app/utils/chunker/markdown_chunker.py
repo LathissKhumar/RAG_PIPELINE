@@ -12,6 +12,7 @@ from pathlib import Path
 from docling.document_converter import DocumentConverter
 from docling.datamodel.base_models import InputFormat
 from docling_core.transforms.chunker import HierarchicalChunker
+from .optimizer import optimize_chunks
 
 
 def _ensure_dir(p: Path) -> None:
@@ -51,14 +52,19 @@ def chunk_markdown_text(text: str, name: str = "doc.md", output_root: str = "con
     except Exception:
         md_content = "\n\n".join([c["text"] for c in chunks])
 
-    with open(out_dir / f"{base_name}.md", "w", encoding="utf-8") as fh:
-        fh.write(md_content)
+    md_file = out_dir / f"{base_name}.md"
+    if not md_file.exists():
+        with open(md_file, "w", encoding="utf-8") as fh:
+            fh.write(md_content)
+
+    # post-process chunks for RAG: merge/split and add overlap
+    optimized = optimize_chunks(chunks)
 
     # write chunks.json and individual chunk files
     with open(out_dir / "chunks.json", "w", encoding="utf-8") as fh:
-        json.dump(chunks, fh, ensure_ascii=False, indent=2)
+        json.dump(optimized, fh, ensure_ascii=False, indent=2)
 
-    for i, c in enumerate(chunks, start=1):
+    for i, c in enumerate(optimized, start=1):
         with open(out_dir / f"chunk_{i:03}.md", "w", encoding="utf-8") as fh:
             fh.write(c.get("text", ""))
 

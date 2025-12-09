@@ -4,6 +4,7 @@ from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions,PictureDescriptionVlmOptions
 from typing import Any, Optional
+from app.utils.chunker.markdown_chunker import chunk_markdown_text
 from docling_core.transforms.serializer.base import BaseDocSerializer, SerializationResult
 from docling_core.transforms.serializer.common import create_ser_result
 from docling_core.transforms.serializer.markdown import (MarkdownDocSerializer, MarkdownParams, MarkdownPictureSerializer)
@@ -29,8 +30,6 @@ def convert_pdf_to_markdown(pdf_path: str, output_dir: str) -> str:
         generate_picture_images=True,
         do_code_enrichment=True,
         do_formula_enrichment=True,
-        force_backend_text=False,
-        generate_page_images=True,
         images_scale=2.0,
         picture_description_options=picture_description_options,
     )
@@ -77,8 +76,20 @@ def convert_pdf_to_markdown(pdf_path: str, output_dir: str) -> str:
     except Exception:
         markdown_content = result.document.export_to_markdown()
 
-    md_path = os.path.join(output_dir, os.path.splitext(os.path.basename(pdf_path))[0] + ".md")
+    base_name = os.path.splitext(os.path.basename(pdf_path))[0]
+    out_folder = os.path.join(output_dir, base_name)
+    os.makedirs(out_folder, exist_ok=True)
+
+    md_path = os.path.join(out_folder, base_name + ".md")
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(markdown_content)
+
+    # Now chunk the converted markdown and persist chunks in the same folder
+    try:
+        # chunk_markdown_text will create the same folder under output_dir/base_name
+        chunk_markdown_text(markdown_content, name=base_name + ".md", output_root=output_dir)
+    except Exception:
+        # If chunking fails, continue but surface the markdown path
+        pass
 
     return md_path

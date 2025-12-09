@@ -19,6 +19,7 @@ from docling_core.transforms.chunker import HierarchicalChunker
 from docling_core.transforms.chunker.code_chunking.standard_code_chunking_strategy import (
     StandardCodeChunkingStrategy,
 )
+from .optimizer import optimize_chunks
 
 
 CODE_EXT_LANG: dict[str, str] = {
@@ -113,9 +114,13 @@ def chunk_code_file(path: str, output_root: str = "converted_mds", min_lines_to_
         # fallback: reconstruct from chunks
         md_content = "\n\n".join([c["text"] for c in merged])
 
-    with open(out_dir / f"{base_name}.md", "w", encoding="utf-8") as fh:
-        fh.write(md_content)
+    md_file = out_dir / f"{base_name}.md"
+    if not md_file.exists():
+        with open(md_file, "w", encoding="utf-8") as fh:
+            fh.write(md_content)
 
-    _write_chunks_to_disk(merged, out_dir)
+    # post-process for RAG
+    optimized = optimize_chunks(merged)
+    _write_chunks_to_disk(optimized, out_dir)
 
     return merged

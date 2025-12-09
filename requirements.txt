@@ -10,4 +10,4 @@ onnxruntime-gpu
 # OCR libraries
 rapidocr
 easyocr
-
+tiktoken

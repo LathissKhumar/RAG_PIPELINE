@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File
 from typing import List
 import os
 from app.utils.docling_converter import convert_pdf_to_markdown
-from app.utils.chunker.hybrid_fallback import chunk_source
+import json
 
 router = APIRouter()
 
@@ -18,11 +18,18 @@ async def convert_pdf(files: List[UploadFile] = File(...)):
         with open(pdf_path, "wb") as f:
             f.write(await file.read())
         md_path = convert_pdf_to_markdown(pdf_path, md_dir)
-        # Run the chunking pipeline and persist chunks under converted_mds/<basename>/
+        # Try to read chunk metadata produced by the converter/chunker
+        chunks_count = 0
         try:
-            chunks = chunk_source(path=pdf_path, output_root=md_dir)
+            folder = os.path.dirname(md_path)
+            chunks_json = os.path.join(folder, "chunks.json")
+            if os.path.exists(chunks_json):
+                with open(chunks_json, "r", encoding="utf-8") as cf:
+                    data = json.load(cf)
+                    if isinstance(data, list):
+                        chunks_count = len(data)
         except Exception:
-            chunks = []
+            chunks_count = 0
 
-        markdown_files.append({"md_path": md_path, "chunks_count": len(chunks)})
+        markdown_files.append({"md_path": md_path, "chunks_count": chunks_count})
     return {"markdown_files": markdown_files}
