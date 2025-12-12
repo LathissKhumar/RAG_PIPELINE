@@ -2,6 +2,7 @@
 import asyncio
 import os
 import time
+import threading
 import numpy as np
 from typing import Any, Dict, List, Tuple
 from app.embeddings.cache import Cache, compute_hash
@@ -22,6 +23,7 @@ _cache = Cache(EMBED_CACHE_PATH)
 _queue: "asyncio.Queue[Tuple[str,str,Dict[str,Any]]]" = asyncio.Queue()
 _worker_tasks: List[asyncio.Task] = []
 _started = False
+_started_lock = threading.Lock()  # Thread-safe flag access
 
 async def _gather_batch(initial_item, max_size: int, wait_ms: int):
     batch = [initial_item]
@@ -107,18 +109,20 @@ async def _stop_all_workers():
 
 def start_workers(loop: asyncio.AbstractEventLoop = None):
     global _started
-    if _started:
-        return
-    _started = True
+    with _started_lock:
+        if _started:
+            return
+        _started = True
     loop = loop or asyncio.get_event_loop()
     loop.create_task(_start_all_workers())
 
 async def stop_workers():
     global _started
-    if not _started:
-        return
+    with _started_lock:
+        if not _started:
+            return
+        _started = False
     await _stop_all_workers()
-    _started = False
 
 # sync helper for chunker (works both from async context and sync code)
 def enqueue_chunk_sync(chunk_id: str, text: str, metadata: Dict[str, Any] = None):

@@ -16,3 +16,5 @@ ollama
 llama-index
 numpy
 requests
+typer[all]
+rank-bm25
