@@ -134,45 +134,55 @@ Configure the application using environment variables. Create a `.env` file in t
 
 ```bash
 # Ollama Configuration
-OLLAMA_URL=http://localhost:11434
-OLLAMA_BASE_URL=http://localhost:11434
-EMBED_MODEL=bge-m3
-LLM_MODEL=llama3
+# Note: Use either OLLAMA_BASE_URL (recommended) or OLLAMA_URL
+OLLAMA_BASE_URL=http://localhost:11434  # Base URL for Ollama API (used by main.py)
+OLLAMA_URL=http://localhost:11434       # Alternative URL (used by embeddings/llm modules)
+EMBED_MODEL=bge-m3                       # Embedding model name
+LLM_MODEL=llama3                         # LLM model for answer generation
 
 # Embedding Worker Configuration
-EMBED_WORKERS=3
-EMBED_BATCH_SIZE=64
-EMBED_BATCH_WAIT_MS=200
-EMBED_CACHE_PATH=embeddings_cache.sqlite3
+EMBED_WORKERS=3                          # Number of parallel workers
+EMBED_BATCH_SIZE=64                      # Chunks per batch
+EMBED_BATCH_WAIT_MS=200                  # Batch wait time in milliseconds
+EMBED_CACHE_PATH=embeddings_cache.sqlite3 # Cache file path
 
 # ChromaDB Configuration
-CHROMA_COLLECTION=documents
+CHROMA_COLLECTION=documents              # Collection name for vector store
 
 # Hybrid Retrieval Configuration
-HYBRID_ALPHA=0.5  # 0=BM25 only, 1=vector only, 0.5=balanced
-USE_RERANKER=1    # 1=enabled, 0=disabled
+HYBRID_ALPHA=0.5                         # 0=BM25 only, 1=vector only, 0.5=balanced
+USE_RERANKER=1                           # 1=enabled, 0=disabled
 
 # LLM Configuration
-OLLAMA_LLM_TIMEOUT=180
-OLLAMA_LLM_RETRIES=3
-OLLAMA_LLM_BACKOFF=1.5
+OLLAMA_LLM_TIMEOUT=180                   # Request timeout in seconds
+OLLAMA_LLM_RETRIES=3                     # Number of retry attempts
+OLLAMA_LLM_BACKOFF=1.5                   # Exponential backoff multiplier
 
-# API Configuration
-API_BASE_URL=http://localhost:8000
-ASK_TOP_K=5
+# API/CLI Configuration
+API_BASE_URL=http://localhost:8000       # API server URL for CLI
+ASK_TOP_K=5                              # Default top-k results for CLI
 ```
 
 ### Configuration Parameters
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `EMBED_MODEL` | `bge-m3` | Ollama embedding model |
-| `LLM_MODEL` | `llama3` | Ollama LLM model for answers |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Base URL for Ollama API (health checks) |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama URL for embeddings and LLM calls |
+| `EMBED_MODEL` | `bge-m3` | Ollama embedding model name |
+| `LLM_MODEL` | `llama3` | Ollama LLM model for answer generation |
 | `EMBED_WORKERS` | `3` | Number of parallel embedding workers |
 | `EMBED_BATCH_SIZE` | `64` | Batch size for embedding generation |
-| `HYBRID_ALPHA` | `0.5` | Weight for dense vs sparse retrieval |
-| `USE_RERANKER` | `1` | Enable cross-encoder reranking |
+| `EMBED_BATCH_WAIT_MS` | `200` | Wait time in milliseconds before processing batch |
+| `EMBED_CACHE_PATH` | `embeddings_cache.sqlite3` | SQLite cache file for embeddings |
 | `CHROMA_COLLECTION` | `documents` | ChromaDB collection name |
+| `HYBRID_ALPHA` | `0.5` | Weight for dense retrieval (0=BM25 only, 1=vector only) |
+| `USE_RERANKER` | `1` | Enable cross-encoder reranking (1=yes, 0=no) |
+| `OLLAMA_LLM_TIMEOUT` | `180` | LLM API request timeout in seconds |
+| `OLLAMA_LLM_RETRIES` | `3` | Number of retry attempts for LLM requests |
+| `OLLAMA_LLM_BACKOFF` | `1.5` | Exponential backoff multiplier for retries |
+| `API_BASE_URL` | `http://localhost:8000` | API server URL (used by CLI) |
+| `ASK_TOP_K` | `5` | Default number of results for CLI queries |
 
 ## 🚀 Usage
 
