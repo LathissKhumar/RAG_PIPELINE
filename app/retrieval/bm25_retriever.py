@@ -2,6 +2,8 @@
 import os
 import logging
 import asyncio
+import hashlib
+import hmac
 from typing import List, Dict, Any, Optional
 from rank_bm25 import BM25Okapi
 import pickle
@@ -11,6 +13,11 @@ logger = logging.getLogger(__name__)
 
 BM25_CACHE_DIR = os.getenv("BM25_CACHE_DIR", "bm25_index")
 BM25_REBUILD_INTERVAL = int(os.getenv("BM25_REBUILD_INTERVAL", "300"))
+BM25_HMAC_SECRET = os.getenv("BM25_HMAC_SECRET", "")
+
+
+class SecurityError(Exception):
+    """Raised when an HMAC signature check fails — file has been tampered with."""
 
 
 
@@ -29,29 +36,72 @@ class BM25Retriever:
         self._load_index()
     
     def _load_index(self):
-        """Load BM25 index from cache if available."""
+        """Load BM25 index from cache if available.
+
+        Each pickle file is expected to have a companion ``.hmac`` sidecar
+        file containing the hex-encoded HMAC-SHA256 signature.  If the
+        signature is missing or does not match, the file is treated as
+        tampered with — the index is discarded and rebuilt from scratch.
+        """
         if self.index_path.exists() and self.docs_path.exists():
             try:
-                with open(self.index_path, "rb") as f:
-                    self.bm25 = pickle.load(f)
-                with open(self.docs_path, "rb") as f:
-                    self.documents = pickle.load(f)
+                self.bm25 = self._load_signed_pickle(self.index_path)
+                self.documents = self._load_signed_pickle(self.docs_path)
                 logger.info(f"Loaded BM25 index with {len(self.documents)} documents")
+            except SecurityError:
+                logger.critical(
+                    "BM25 index HMAC verification failed — possible tampering. "
+                    "Discarding cached index; it will be rebuilt from ChromaDB."
+                )
+                self.bm25 = None
+                self.documents = []
+                for p in (self.index_path, self.docs_path,
+                          self.index_path.with_suffix(".pkl.hmac"),
+                          self.docs_path.with_suffix(".pkl.hmac")):
+                    try:
+                        p.unlink(missing_ok=True)
+                    except OSError:
+                        pass
             except Exception as e:
                 logger.warning(f"Failed to load BM25 index: {e}")
                 self.bm25 = None
                 self.documents = []
-    
+
     def _save_index(self):
-        """Save BM25 index to cache."""
         try:
-            with open(self.index_path, "wb") as f:
-                pickle.dump(self.bm25, f)
-            with open(self.docs_path, "wb") as f:
-                pickle.dump(self.documents, f)
+            self._save_signed_pickle(self.index_path, self.bm25)
+            self._save_signed_pickle(self.docs_path, self.documents)
             logger.info(f"Saved BM25 index with {len(self.documents)} documents")
         except Exception as e:
             logger.error(f"Failed to save BM25 index: {e}")
+
+    def _save_signed_pickle(self, path: Path, obj: Any) -> None:
+        raw = pickle.dumps(obj, protocol=pickle.HIGHEST_PROTOCOL)
+        sig = hmac.new(BM25_HMAC_SECRET.encode(), raw, hashlib.sha256).hexdigest()
+
+        with open(path, "wb") as f:
+            f.write(raw)
+
+        hmac_path = path.with_suffix(path.suffix + ".hmac")
+        with open(hmac_path, "w") as f:
+            f.write(sig + "\n")
+
+    def _load_signed_pickle(self, path: Path) -> Any:
+        raw = path.read_bytes()
+
+        hmac_path = path.with_suffix(path.suffix + ".hmac")
+        if not hmac_path.exists():
+            # Legacy unsigned file — treat as tampered (must re-index)
+            raise SecurityError(f"No HMAC signature file for {path}")
+
+        expected_sig = hmac_path.read_text().strip()
+        computed = hmac.new(BM25_HMAC_SECRET.encode(), raw, hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(computed, expected_sig):
+            raise SecurityError(
+                f"HMAC mismatch for {path} — file may have been tampered with"
+            )
+
+        return pickle.loads(raw)
     
     def build_index(self, documents: List[Dict[str, Any]]):
         """Build BM25 index from documents.
